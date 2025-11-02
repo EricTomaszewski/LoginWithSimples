@@ -133,6 +133,10 @@ export default function HomePage() {
   const refreshEvents = useCallback(
     async (uid: string) => {
       try {
+        // NOTE: The events live in the shared top-level "userEvents" collection so that
+        // they remain compatible with the deployed Firestore security rules.
+        // We keep the query simple (filter by uid only) and sort client-side to avoid
+        // triggering composite index requirements in production.
         const eventsQuery = query(collection(db, "userEvents"), where("uid", "==", uid));
         const snapshot = await getDocs(eventsQuery);
         const data: EventRecord[] = snapshot.docs
