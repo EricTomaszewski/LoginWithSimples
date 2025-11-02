@@ -73,6 +73,14 @@ button.secondary:hover {
   background: #e2e8f0;
 }
 
+button.google {
+  background: #22c55e;
+}
+
+button.google:hover {
+  background: #16a34a;
+}
+
 .status {
   margin-top: 1rem;
   font-size: 0.875rem;
