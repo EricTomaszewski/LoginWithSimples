@@ -372,7 +372,7 @@ export default function HomePage() {
               <button type="button" className="secondary" onClick={handleEmailLogin}>
                 Log in with email
               </button>
-              <button type="button" onClick={handleGoogleAuth}>
+              <button type="button" className="google" onClick={handleGoogleAuth}>
                 Continue with Google
               </button>
             </div>
