@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FirebaseError } from "firebase/app";
 import {
+  type AuthCredential,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
@@ -9,6 +11,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  linkWithCredential,
   type User,
 } from "firebase/auth";
 import {
@@ -57,6 +60,7 @@ export default function HomePage() {
   const [interested, setInterested] = useState<InterestedOption>("");
   const [savedInterested, setSavedInterested] = useState<InterestedOption>("");
   const [interestedSaving, setInterestedSaving] = useState(false);
+  const [pendingCredential, setPendingCredential] = useState<AuthCredential | null>(null);
 
   const providerColor = useMemo(() => {
     if (!firebaseUser) {
@@ -98,6 +102,7 @@ export default function HomePage() {
     setInterested("");
     setSavedInterested("");
     setInterestedSaving(false);
+    setPendingCredential(null);
   }, []);
 
   const recordAuthEvent = useCallback(async (user: User, eventType: "signup" | "login") => {
@@ -293,8 +298,27 @@ export default function HomePage() {
       await recordAuthEvent(credential.user, "login");
       await loadProfile(credential.user);
       await refreshEvents(credential.user.uid);
-      setStatus("Logged in successfully.");
-      setStatusType("success");
+      if (pendingCredential && auth.currentUser) {
+        try {
+          await linkWithCredential(auth.currentUser, pendingCredential);
+          setPendingCredential(null);
+          setStatus(
+            "Logged in successfully and linked your Google account. You can now sign in with both methods."
+          );
+          setStatusType("success");
+        } catch (linkError) {
+          console.error("Failed to link credential", linkError);
+          setStatus(
+            linkError instanceof Error
+              ? `Logged in, but failed to link Google: ${linkError.message}`
+              : "Logged in, but failed to link Google credentials."
+          );
+          setStatusType("error");
+        }
+      } else {
+        setStatus("Logged in successfully.");
+        setStatusType("success");
+      }
     } catch (error: unknown) {
       console.error(error);
       setStatus(
@@ -315,8 +339,22 @@ export default function HomePage() {
       await refreshEvents(credential.user.uid);
       setStatus("Authenticated with Google.");
       setStatusType("success");
+      setPendingCredential(null);
     } catch (error: unknown) {
       console.error(error);
+      if (error instanceof FirebaseError && error.code === "auth/account-exists-with-different-credential") {
+        const credential = GoogleAuthProvider.credentialFromError(error);
+        const emailFromError = typeof error.customData?.email === "string" ? error.customData.email : null;
+        if (credential && emailFromError) {
+          setPendingCredential(credential);
+          setEmail(emailFromError);
+          setStatus(
+            "This email is already linked to another sign-in method. Please log in with your email and password to finish linking Google."
+          );
+          setStatusType("info");
+          return;
+        }
+      }
       setStatus(error instanceof Error ? error.message : "Google authentication failed.");
       setStatusType("error");
     }
