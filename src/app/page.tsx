@@ -24,7 +24,6 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  where,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
@@ -104,7 +103,7 @@ export default function HomePage() {
   }, []);
 
   const recordAuthEvent = useCallback(async (user: User, eventType: "signup" | "login") => {
-    await addDoc(collection(db, "userEvents"), {
+    await addDoc(collection(db, "users", user.uid, "events"), {
       uid: user.uid,
       email: user.email,
       provider: user.providerData[0]?.providerId ?? "unknown",
