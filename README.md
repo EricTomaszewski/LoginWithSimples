@@ -48,7 +48,7 @@ A Next.js web app that demonstrates Firebase authentication with Google or email
 ## Data model
 
 - `users/{uid}`: Stores profile information (email, provider, personal note, interested flag, timestamps).
-- `userEvents/{autoId}`: Stores an entry for every sign up or login, including provider, timestamp, and email.
+- `userEvents/{autoId}`: Stores an entry for every sign up or login, including provider, timestamp, and email (filterable by `uid`).
 
 ## Deployment
 
