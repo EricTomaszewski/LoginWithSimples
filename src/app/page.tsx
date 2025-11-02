@@ -21,8 +21,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  limit,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -133,28 +131,42 @@ export default function HomePage() {
 
   const refreshEvents = useCallback(
     async (uid: string) => {
-      const eventsQuery = query(
-        collection(db, "users", uid, "events"),
-        orderBy("timestamp", "desc"),
-        limit(20)
-      );
-      const snapshot = await getDocs(eventsQuery);
-      const data: EventRecord[] = snapshot.docs.map((docSnapshot) => {
-        const raw = docSnapshot.data() as {
-          eventType: "signup" | "login";
-          provider: string;
-          timestamp?: Timestamp;
-        };
-        return {
-          id: docSnapshot.id,
-          eventType: raw.eventType,
-          provider: raw.provider,
-          timestamp: raw.timestamp,
-        };
-      });
-      setEvents(data);
+      try {
+        // NOTE: The events live in the shared top-level "userEvents" collection so that
+        // they remain compatible with the deployed Firestore security rules.
+        // We keep the query simple (filter by uid only) and sort client-side to avoid
+        // triggering composite index requirements in production.
+        const eventsQuery = query(collection(db, "userEvents"), where("uid", "==", uid));
+        const snapshot = await getDocs(eventsQuery);
+        const data: EventRecord[] = snapshot.docs
+          .map((docSnapshot) => {
+            const raw = docSnapshot.data() as {
+              eventType: "signup" | "login";
+              provider: string;
+              timestamp?: Timestamp;
+            };
+            return {
+              id: docSnapshot.id,
+              eventType: raw.eventType,
+              provider: raw.provider,
+              timestamp: raw.timestamp,
+            };
+          })
+          .sort((a, b) => {
+            const aTime = a.timestamp ? a.timestamp.toMillis() : 0;
+            const bTime = b.timestamp ? b.timestamp.toMillis() : 0;
+            return bTime - aTime;
+          })
+          .slice(0, 20);
+        setEvents(data);
+      } catch (error) {
+        console.error("Failed to load recent events", error);
+        setEvents([]);
+        setStatus("Unable to load your recent activity right now.");
+        setStatusType("error");
+      }
     },
-    []
+    [setStatus, setStatusType]
   );
 
   const loadProfile = useCallback(
